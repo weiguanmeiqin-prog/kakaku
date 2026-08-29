@@ -3,17 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>リアルタイム カード価格掲示板</title>
+  <title>リアルタイム カード売買価格掲示板</title>
   <style>
-    body { font-family: sans-serif; background-color: #f0f4f8; padding: 20px; max-width: 800px; margin: 0 auto; }
+    body { font-family: sans-serif; background-color: #f0f4f8; padding: 20px; max-width: 900px; margin: 0 auto; }
     h1 { text-align: center; color: #333; margin-bottom: 5px; }
-    .subtitle { text-align: center; color: #666; font-size: 0.9rem; margin-bottom: 20px; }
+    .subtitle { text-align: center; color: #666; font-size: 0.9rem; margin-bottom: 15px; }
+    
+    /* 自販機購入価格の一律表示バナー */
+    .vending-banner { background: #e74c3c; color: white; text-align: center; padding: 15px; font-size: 1.3rem; font-weight: bold; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    
     .controls { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
     .date-info { font-size: 1.2rem; font-weight: bold; color: #2c3e50; }
     .clock-info { font-size: 1rem; color: #7f8c8d; font-weight: bold; }
+    
     table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
     th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
     th { background-color: #34495e; color: white; }
+    .sell-price { color: #2980b9; font-weight: bold; font-size: 1.1rem; }
     .up { color: #e74c3c; font-weight: bold; }
     .down { color: #27ae60; font-weight: bold; }
     .same { color: #7f8c8d; font-weight: bold; }
@@ -21,9 +27,13 @@
 </head>
 <body>
 
-  <h1>📈 リアルタイム カード価格掲示板</h1>
-  <div class="subtitle">※価格は毎日 00:00（午前）と 12:00（午後）に自動で更新されます</div>
+  <h1>📈 リアルタイム カード売買価格掲示板</h1>
+  <div class="subtitle">※買取価格は毎日 00:00（午前）と 12:00（午後）に自動で更新されます</div>
   
+  <div class="vending-banner">
+    🎰 自販機購入価格：全カード一律 120 pt / 1回
+  </div>
+
   <div class="controls">
     <div class="date-info" id="dateDisplay">----/--/-- - --</div>
     <div class="clock-info" id="clockDisplay">00:00:00</div>
@@ -33,34 +43,33 @@
     <thead>
       <tr>
         <th>カード名</th>
-        <th>基準価格</th>
-        <th>現在価格</th>
-        <th>前回比</th>
+        <th>現在買取価格 (売る)</th>
+        <th>買取価格の前回比</th>
+        <th>120ptとの損益</th>
       </tr>
     </thead>
     <tbody id="cardTable">
-      <!-- ここにJSでカードが追加されます -->
-    </tbody>
+      </tbody>
   </table>
 
   <script>
+    const FIXED_BUY_PRICE = 120; // 購入価格（一律120pt）
+
     const cardNames = [
       "ハナモゲラカード", "オオトリサマカード", "ぴよたんカード", "ぴよこカード", 
       "てんてんカード", "なごみんカード", "しゃーしゃカード", "カッパカード", 
       "ムノーンちゃんカード", "ふくちゃんカード"
     ];
 
-    // 擬似乱数生成器（日付と時間から一定のランダム価格を作る仕組み）
+    // 擬似乱数生成器
     function seededRandom(seed) {
       const x = Math.sin(seed++) * 10000;
       return x - Math.floor(x);
     }
 
-    // 特定の「年月日・午前午後」に対応する価格を計算
-    function getPriceForTime(cardIndex, year, month, day, isAM) {
+    // 特定の時間の「買取価格」を計算
+    function getSellPriceForTime(cardIndex, year, month, day, isAM) {
       let price = 100; // 基準価格
-      
-      // 過去5区分（約2.5日前）からの価格変動を累積計算
       const totalTurns = (year * 366 + month * 31 + day) * 2 + (isAM ? 0 : 1);
       
       for (let t = totalTurns - 5; t <= totalTurns; t++) {
@@ -89,10 +98,9 @@
       const timeStr = now.toTimeString().split(' ')[0];
       document.getElementById("clockDisplay").innerText = timeStr;
 
-      // 前回の区分（直前の午前または午後）を取得
+      // 前回の区分を取得
       let prevYear = year, prevMonth = month, prevDay = day, prevIsAM = !isAM;
       if (isAM) {
-        // 今が午前なら、前回は「昨日の午後」
         const yesterday = new Date(now);
         yesterday.setDate(now.getDate() - 1);
         prevYear = yesterday.getFullYear();
@@ -105,13 +113,13 @@
       tbody.innerHTML = "";
 
       cardNames.forEach((name, index) => {
-        const currentPrice = getPriceForTime(index, year, month, day, isAM);
-        const prevPrice = getPriceForTime(index, prevYear, prevMonth, prevDay, prevIsAM);
+        const currentSellPrice = getSellPriceForTime(index, year, month, day, isAM);
+        const prevSellPrice = getSellPriceForTime(index, prevYear, prevMonth, prevDay, prevIsAM);
 
-        const diff = currentPrice - prevPrice;
+        // 前回比
+        const diff = currentSellPrice - prevSellPrice;
         let diffText = "±0";
         let diffClass = "same";
-
         if (diff > 0) {
           diffText = `▲ +${diff}`;
           diffClass = "up";
@@ -120,12 +128,24 @@
           diffClass = "down";
         }
 
+        // 購入一律価格（120pt）に対する損益
+        const profit = currentSellPrice - FIXED_BUY_PRICE;
+        let profitText = `±0 pt`;
+        let profitClass = "same";
+        if (profit > 0) {
+          profitText = `+${profit} pt (得!)`;
+          profitClass = "up";
+        } else if (profit < 0) {
+          profitText = `${profit} pt (損)`;
+          profitClass = "down";
+        }
+
         const row = `
           <tr>
             <td><strong>${name}</strong></td>
-            <td>100 pt</td>
-            <td><strong>${currentPrice} pt</strong></td>
+            <td class="sell-price">💰 ${currentSellPrice} pt</td>
             <td class="${diffClass}">${diffText}</td>
+            <td class="${profitClass}">${profitText}</td>
           </tr>
         `;
         tbody.innerHTML += row;
