@@ -3,24 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>リアルタイム カード売買価格掲示板</title>
+  <title>カードトレード＆特典交換 Webアプリ</title>
   <style>
-    body { font-family: sans-serif; background-color: #f0f4f8; padding: 20px; max-width: 900px; margin: 0 auto; }
-    h1 { text-align: center; color: #333; margin-bottom: 5px; }
-    .subtitle { text-align: center; color: #666; font-size: 0.9rem; margin-bottom: 15px; }
+    body { font-family: sans-serif; background-color: #f0f4f8; padding: 20px; max-width: 900px; margin: 0 auto; color: #333; }
+    h1 { text-align: center; margin-bottom: 5px; }
+    .subtitle { text-align: center; color: #666; font-size: 0.9rem; margin-bottom: 20px; }
     
-    /* ランダム一律購入価格の表示バナー */
-    .vending-banner { background: #e74c3c; color: white; text-align: center; padding: 15px; font-size: 1.3rem; font-weight: bold; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .vending-banner span { font-size: 1.6rem; color: #f1c40f; text-decoration: underline; }
+    /* ステータスバー（所持ポイント表示） */
+    .status-bar { background: #2c3e50; color: white; padding: 15px 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .point-display { font-size: 1.5rem; font-weight: bold; color: #f1c40f; }
+    
+    /* ガチャ・自販機エリア */
+    .vending-card { background: #fff; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 2px solid #e74c3c; }
+    .vending-title { font-size: 1.2rem; font-weight: bold; color: #e74c3c; margin-bottom: 10px; }
+    .btn-buy { background: #e74c3c; color: white; border: none; padding: 12px 24px; font-size: 1.1rem; font-weight: bold; border-radius: 5px; cursor: pointer; }
+    .btn-buy:hover { background: #c0392b; }
+    
+    /* 結果・通知表示 */
+    .message-box { background: #e8f8f5; border: 1px solid #2ecc71; color: #27ae60; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 20px; display: none; font-weight: bold; }
 
-    .controls { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .date-info { font-size: 1.2rem; font-weight: bold; color: #2c3e50; }
-    .clock-info { font-size: 1rem; color: #7f8c8d; font-weight: bold; }
-    
-    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+    /* セクション切り替えタブ */
+    .section-title { font-size: 1.3rem; font-weight: bold; margin-top: 30px; margin-bottom: 10px; border-bottom: 2px solid #34495e; padding-bottom: 5px; }
+
+    /* テーブル */
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #ddd; }
     th { background-color: #34495e; color: white; }
-    .sell-price { color: #2980b9; font-weight: bold; font-size: 1.1rem; }
+    .btn-action { padding: 6px 12px; font-size: 0.9rem; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .btn-sell { background: #3498db; color: white; }
+    .btn-sell:hover { background: #2980b9; }
+    .btn-exchange { background: #2ecc71; color: white; }
+    .btn-exchange:hover { background: #27ae60; }
+    
     .up { color: #e74c3c; font-weight: bold; }
     .down { color: #27ae60; font-weight: bold; }
     .same { color: #7f8c8d; font-weight: bold; }
@@ -28,29 +42,58 @@
 </head>
 <body>
 
-  <h1>📈 リアルタイム カード売買価格掲示板</h1>
-  <div class="subtitle">※価格は毎日 00:00（午前）と 12:00（午後）に自動で更新されます</div>
-  
-  <div class="vending-banner">
-    🎰 現在の自販機価格：全カード一律 <span id="buyPriceDisplay">---</span> pt / 1回
+  <h1>🎴 カードトレード Webゲーム</h1>
+  <div class="subtitle">価格は毎日 00:00 と 12:00 に自動更新されます</div>
+
+  <div class="status-bar">
+    <div>所持ポイント</div>
+    <div class="point-display"><span id="userPoints">1000</span> pt</div>
   </div>
 
-  <div class="controls">
-    <div class="date-info" id="dateDisplay">----/--/-- - --</div>
-    <div class="clock-info" id="clockDisplay">00:00:00</div>
+  <div id="messageBox" class="message-box"></div>
+
+  <div class="vending-card">
+    <div class="vending-title">🎰 WEBカード自販機</div>
+    <p>現在の購入価格：<strong id="currentBuyPrice">---</strong> pt / 1枚（ランダム排出）</p>
+    <button class="btn-buy" onclick="buyCard()">カードを1枚引く！</button>
   </div>
 
+  <div class="section-title">📈 カード買取価格掲示板</div>
   <table>
     <thead>
       <tr>
         <th>カード名</th>
-        <th>現在買取価格 (売る)</th>
-        <th>買取価格の前回比</th>
-        <th>現在の購入価格との損益</th>
+        <th>買取価格</th>
+        <th>前回比</th>
+        <th>所持数</th>
       </tr>
     </thead>
-    <tbody id="cardTable">
-      </tbody>
+    <tbody id="priceTable"></tbody>
+  </table>
+
+  <div class="section-title">🎒 所持カード一覧</div>
+  <table>
+    <thead>
+      <tr>
+        <th>カード名</th>
+        <th>所持枚数</th>
+        <th>現在の買取単価</th>
+        <th>売却</th>
+      </tr>
+    </thead>
+    <tbody id="inventoryTable"></tbody>
+  </table>
+
+  <div class="section-title">🎁 特典・家事代行サービス券 交換所</div>
+  <table>
+    <thead>
+      <tr>
+        <th>サービス内容</th>
+        <th>必要ポイント</th>
+        <th>交換</th>
+      </tr>
+    </thead>
+    <tbody id="rewardTable"></tbody>
   </table>
 
   <script>
@@ -60,29 +103,44 @@
       "ムノーンちゃんカード", "ふくちゃんカード"
     ];
 
-    // 擬似乱数生成器
+    // 特典リスト（必要ポイントは自由に変更できます）
+    const rewards = [
+      { name: "洗濯物干す券", cost: 500 },
+      { name: "食器洗い代行券", cost: 1200 },
+      { name: "部屋の掃除代行券", cost: 2000 },
+      { name: "1日家事何でもおまかせ券", cost: 5000 }
+    ];
+
+    // ローカルストレージを使用したデータ管理（初期化）
+    let points = parseInt(localStorage.getItem('userPoints')) || 1000;
+    let inventory = JSON.parse(localStorage.getItem('cardInventory')) || {};
+    
+    // インベントリの初期化チェック
+    cardNames.forEach(name => {
+      if (!inventory[name]) inventory[name] = 0;
+    });
+
+    // 擬似乱数生成器（時間のシード値で全員共通の価格を作成）
     function seededRandom(seed) {
       const x = Math.sin(seed++) * 10000;
       return x - Math.floor(x);
     }
 
-    // 特定の時間の「一律購入価格」を計算（80pt 〜 150pt の間でランダム変動）
+    // 購入価格の取得（一律・時間で変動）
     function getGlobalBuyPrice(year, month, day, isAM) {
       const totalTurns = (year * 366 + month * 31 + day) * 2 + (isAM ? 0 : 1);
-      const seed = totalTurns * 777; // 購入価格専用のシード値
-      // 80pt〜150ptの範囲（10pt刻み）でランダム決定
-      const baseRate = Math.floor(seededRandom(seed) * 8); // 0〜7
-      return 80 + (baseRate * 10);
+      const seed = totalTurns * 777;
+      const baseRate = Math.floor(seededRandom(seed) * 8);
+      return 80 + (baseRate * 10); // 80pt 〜 150pt
     }
 
-    // 特定の時間の「買取価格」を計算
+    // 買取価格の取得
     function getSellPriceForTime(cardIndex, year, month, day, isAM) {
-      let price = 100; // 基準価格
+      let price = 100;
       const totalTurns = (year * 366 + month * 31 + day) * 2 + (isAM ? 0 : 1);
-      
       for (let t = totalTurns - 5; t <= totalTurns; t++) {
         const seed = t * 100 + cardIndex;
-        const changePercent = (seededRandom(seed) * 0.4) - 0.2; // -20%〜+20%
+        const changePercent = (seededRandom(seed) * 0.4) - 0.2;
         price = Math.round(price * (1 + changePercent));
         if (price < 20) price = 20;
         if (price > 300) price = 300;
@@ -90,83 +148,143 @@
       return price;
     }
 
-    function updateBoard() {
+    function showMessage(text) {
+      const box = document.getElementById('messageBox');
+      box.innerText = text;
+      box.style.display = 'block';
+      setTimeout(() => { box.style.display = 'none'; }, 3000);
+    }
+
+    function saveData() {
+      localStorage.setItem('userPoints', points);
+      localStorage.setItem('cardInventory', JSON.stringify(inventory));
+      updateUI();
+    }
+
+    // ガチャを引く
+    function buyCard() {
+      const now = new Date();
+      const currentBuyPrice = getGlobalBuyPrice(now.getFullYear(), now.getMonth() + 1, now.getDate(), now.getHours() < 12);
+
+      if (points < currentBuyPrice) {
+        alert("ポイントが足りません！");
+        return;
+      }
+
+      points -= currentBuyPrice;
+      const randomIndex = Math.floor(Math.random() * cardNames.length);
+      const drawnCard = cardNames[randomIndex];
+      
+      inventory[drawnCard] += 1;
+      showMessage(`🎉 「${drawnCard}」を引き当てました！ (-${currentBuyPrice} pt)`);
+      saveData();
+    }
+
+    // カードを売る
+    function sellCard(cardName, price) {
+      if (inventory[cardName] <= 0) return;
+
+      inventory[cardName] -= 1;
+      points += price;
+      showMessage(`💰 「${cardName}」を ${price} pt で売却しました！`);
+      saveData();
+    }
+
+    // 特典と交換する
+    function exchangeReward(rewardName, cost) {
+      if (points < cost) {
+        alert("ポイントが足りません！");
+        return;
+      }
+
+      if (confirm(`「${rewardName}」を ${cost} pt で交換しますか？`)) {
+        points -= cost;
+        showMessage(`🎁 「${rewardName}」と交換しました！`);
+        saveData();
+      }
+    }
+
+    // 画面表示の更新
+    function updateUI() {
+      document.getElementById('userPoints').innerText = points;
+
       const now = new Date();
       const year = now.getFullYear();
       const month = now.getMonth() + 1;
       const day = now.getDate();
-      const hours = now.getHours();
-      const isAM = hours < 12;
+      const isAM = now.getHours() < 12;
 
-      // 日時表示
-      const dateStr = `${year}/${month}/${day} ${isAM ? "午前 (00:00〜11:59)" : "午後 (12:00〜23:59)"}`;
-      document.getElementById("dateDisplay").innerText = dateStr;
+      const buyPrice = getGlobalBuyPrice(year, month, day, isAM);
+      document.getElementById('currentBuyPrice').innerText = buyPrice;
 
-      // 時計表示
-      const timeStr = now.toTimeString().split(' ')[0];
-      document.getElementById("clockDisplay").innerText = timeStr;
-
-      // 現在の一律購入価格を取得・表示
-      const currentBuyPrice = getGlobalBuyPrice(year, month, day, isAM);
-      document.getElementById("buyPriceDisplay").innerText = currentBuyPrice;
-
-      // 前回の区分を取得
+      // 前回時間（前回比計算用）
       let prevYear = year, prevMonth = month, prevDay = day, prevIsAM = !isAM;
       if (isAM) {
         const yesterday = new Date(now);
         yesterday.setDate(now.getDate() - 1);
-        prevYear = yesterday.getFullYear();
-        prevMonth = yesterday.getMonth() + 1;
-        prevDay = yesterday.getDate();
-        prevIsAM = false;
+        prevYear = yesterday.getFullYear(); prevMonth = yesterday.getMonth() + 1; prevDay = yesterday.getDate(); prevIsAM = false;
       }
 
-      const tbody = document.getElementById("cardTable");
-      tbody.innerHTML = "";
+      // 1. 価格掲示板の更新
+      const priceTbody = document.getElementById('priceTable');
+      priceTbody.innerHTML = '';
+      cardNames.forEach((name, idx) => {
+        const currentSell = getSellPriceForTime(idx, year, month, day, isAM);
+        const prevSell = getSellPriceForTime(idx, prevYear, prevMonth, prevDay, prevIsAM);
+        const diff = currentSell - prevSell;
 
-      cardNames.forEach((name, index) => {
-        const currentSellPrice = getSellPriceForTime(index, year, month, day, isAM);
-        const prevSellPrice = getSellPriceForTime(index, prevYear, prevMonth, prevDay, prevIsAM);
+        let diffText = "±0", diffClass = "same";
+        if (diff > 0) { diffText = `▲ +${diff}`; diffClass = "up"; }
+        else if (diff < 0) { diffText = `▼ ${diff}`; diffClass = "down"; }
 
-        // 前回比
-        const diff = currentSellPrice - prevSellPrice;
-        let diffText = "±0";
-        let diffClass = "same";
-        if (diff > 0) {
-          diffText = `▲ +${diff}`;
-          diffClass = "up";
-        } else if (diff < 0) {
-          diffText = `▼ ${diff}`;
-          diffClass = "down";
-        }
-
-        // 変動する一律購入価格に対する損益
-        const profit = currentSellPrice - currentBuyPrice;
-        let profitText = `±0 pt`;
-        let profitClass = "same";
-        if (profit > 0) {
-          profitText = `+${profit} pt (得!)`;
-          profitClass = "up";
-        } else if (profit < 0) {
-          profitText = `${profit} pt (損)`;
-          profitClass = "down";
-        }
-
-        const row = `
+        priceTbody.innerHTML += `
           <tr>
             <td><strong>${name}</strong></td>
-            <td class="sell-price">💰 ${currentSellPrice} pt</td>
+            <td class="sell-price">💰 ${currentSell} pt</td>
             <td class="${diffClass}">${diffText}</td>
-            <td class="${profitClass}">${profitText}</td>
-          </tr>
-        `;
-        tbody.innerHTML += row;
+            <td>${inventory[name]} 枚</td>
+          </tr>`;
+      });
+
+      // 2. 所持カード＆売却テーブルの更新
+      const invTbody = document.getElementById('inventoryTable');
+      invTbody.innerHTML = '';
+      cardNames.forEach((name, idx) => {
+        const currentSell = getSellPriceForTime(idx, year, month, day, isAM);
+        const count = inventory[name];
+        
+        invTbody.innerHTML += `
+          <tr>
+            <td><strong>${name}</strong></td>
+            <td>${count} 枚</td>
+            <td>${currentSell} pt</td>
+            <td>
+              <button class="btn-action btn-sell" onclick="sellCard('${name}', ${currentSell})" ${count === 0 ? 'disabled' : ''}>
+                1枚売る (+${currentSell}pt)
+              </button>
+            </td>
+          </tr>`;
+      });
+
+      // 3. 特典交換テーブルの更新
+      const rewardTbody = document.getElementById('rewardTable');
+      rewardTbody.innerHTML = '';
+      rewards.forEach(r => {
+        rewardTbody.innerHTML += `
+          <tr>
+            <td><strong>${r.name}</strong></td>
+            <td>${r.cost} pt</td>
+            <td>
+              <button class="btn-action btn-exchange" onclick="exchangeReward('${r.name}', ${r.cost})">
+                交換する
+              </button>
+            </td>
+          </tr>`;
       });
     }
 
-    // 初回実行と1秒ごとの時計更新
-    updateBoard();
-    setInterval(updateBoard, 1000);
+    // 初期起動
+    updateUI();
   </script>
 
 </body>
