@@ -9,9 +9,10 @@
     h1 { text-align: center; color: #333; margin-bottom: 5px; }
     .subtitle { text-align: center; color: #666; font-size: 0.9rem; margin-bottom: 15px; }
     
-    /* 自販機購入価格の一律表示バナー */
+    /* ランダム一律購入価格の表示バナー */
     .vending-banner { background: #e74c3c; color: white; text-align: center; padding: 15px; font-size: 1.3rem; font-weight: bold; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    
+    .vending-banner span { font-size: 1.6rem; color: #f1c40f; text-decoration: underline; }
+
     .controls { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
     .date-info { font-size: 1.2rem; font-weight: bold; color: #2c3e50; }
     .clock-info { font-size: 1rem; color: #7f8c8d; font-weight: bold; }
@@ -28,10 +29,10 @@
 <body>
 
   <h1>📈 リアルタイム カード売買価格掲示板</h1>
-  <div class="subtitle">※買取価格は毎日 00:00（午前）と 12:00（午後）に自動で更新されます</div>
+  <div class="subtitle">※価格は毎日 00:00（午前）と 12:00（午後）に自動で更新されます</div>
   
   <div class="vending-banner">
-    🎰 自販機購入価格：全カード一律 120 pt / 1回
+    🎰 現在の自販機価格：全カード一律 <span id="buyPriceDisplay">---</span> pt / 1回
   </div>
 
   <div class="controls">
@@ -45,7 +46,7 @@
         <th>カード名</th>
         <th>現在買取価格 (売る)</th>
         <th>買取価格の前回比</th>
-        <th>120ptとの損益</th>
+        <th>現在の購入価格との損益</th>
       </tr>
     </thead>
     <tbody id="cardTable">
@@ -53,8 +54,6 @@
   </table>
 
   <script>
-    const FIXED_BUY_PRICE = 120; // 購入価格（一律120pt）
-
     const cardNames = [
       "ハナモゲラカード", "オオトリサマカード", "ぴよたんカード", "ぴよこカード", 
       "てんてんカード", "なごみんカード", "しゃーしゃカード", "カッパカード", 
@@ -65,6 +64,15 @@
     function seededRandom(seed) {
       const x = Math.sin(seed++) * 10000;
       return x - Math.floor(x);
+    }
+
+    // 特定の時間の「一律購入価格」を計算（80pt 〜 150pt の間でランダム変動）
+    function getGlobalBuyPrice(year, month, day, isAM) {
+      const totalTurns = (year * 366 + month * 31 + day) * 2 + (isAM ? 0 : 1);
+      const seed = totalTurns * 777; // 購入価格専用のシード値
+      // 80pt〜150ptの範囲（10pt刻み）でランダム決定
+      const baseRate = Math.floor(seededRandom(seed) * 8); // 0〜7
+      return 80 + (baseRate * 10);
     }
 
     // 特定の時間の「買取価格」を計算
@@ -98,6 +106,10 @@
       const timeStr = now.toTimeString().split(' ')[0];
       document.getElementById("clockDisplay").innerText = timeStr;
 
+      // 現在の一律購入価格を取得・表示
+      const currentBuyPrice = getGlobalBuyPrice(year, month, day, isAM);
+      document.getElementById("buyPriceDisplay").innerText = currentBuyPrice;
+
       // 前回の区分を取得
       let prevYear = year, prevMonth = month, prevDay = day, prevIsAM = !isAM;
       if (isAM) {
@@ -128,8 +140,8 @@
           diffClass = "down";
         }
 
-        // 購入一律価格（120pt）に対する損益
-        const profit = currentSellPrice - FIXED_BUY_PRICE;
+        // 変動する一律購入価格に対する損益
+        const profit = currentSellPrice - currentBuyPrice;
         let profitText = `±0 pt`;
         let profitClass = "same";
         if (profit > 0) {
