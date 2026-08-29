@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>カード価格変動ボード</title>
+  <style>
+    body { font-family: sans-serif; background-color: #f0f4f8; padding: 20px; max-width: 800px; margin: 0 auto; }
+    h1 { text-align: center; color: #333; }
+    .controls { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .date-info { font-size: 1.2rem; font-weight: bold; color: #2c3e50; }
+    button { padding: 10px 20px; font-size: 1rem; background-color: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    button:hover { background-color: #2980b9; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+    th { background-color: #34495e; color: white; }
+    .up { color: #e74c3c; font-weight: bold; }
+    .down { color: #27ae60; font-weight: bold; }
+    .same { color: #7f8c8d; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <h1>📈 カード価格掲示板</h1>
+  
+  <div class="controls">
+    <div class="date-info" id="dateDisplay">1日目 - 午前</div>
+    <button onclick="nextTurn()">次の時間へを進める</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>カード名</th>
+        <th>基準価格</th>
+        <th>現在価格</th>
+        <th>前回比</th>
+      </tr>
+    </thead>
+    <tbody id="cardTable">
+      </tbody>
+  </table>
+
+  <script>
+    const cardNames = [
+      "ハナモゲラカード", "オオトリサマカード", "ぴよたんカード", "ぴよこカード", 
+      "てんてんカード", "なごみんカード", "しゃーしゃカード", "カッパカード", 
+      "ムノーンちゃんカード", "ふくちゃんカード"
+    ];
+
+    let day = 1;
+    let isAM = true;
+
+    // 各カードの現在価格と前回価格を管理（基準100pt）
+    let cards = cardNames.map(name => ({
+      name: name,
+      basePrice: 100,
+      currentPrice: 100,
+      prevPrice: 100
+    }));
+
+    function updatePrices() {
+      cards.forEach(card => {
+        card.prevPrice = card.currentPrice;
+        // 基準100ptから大幅に離れすぎないよう、50pt〜200ptの間でランダム変動（-20%〜+20%）
+        const changePercent = (Math.random() * 0.4) - 0.2; 
+        let newPrice = Math.round(card.currentPrice * (1 + changePercent));
+        
+        // 価格の上限・下限を設定（最低20pt、最高300pt）
+        if (newPrice < 20) newPrice = 20;
+        if (newPrice > 300) newPrice = 300;
+        
+        card.currentPrice = newPrice;
+      });
+      renderTable();
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById("cardTable");
+      tbody.innerHTML = "";
+
+      cards.forEach(card => {
+        const diff = card.currentPrice - card.prevPrice;
+        let diffText = "±0";
+        let diffClass = "same";
+
+        if (diff > 0) {
+          diffText = `▲ +${diff}`;
+          diffClass = "up";
+        } else if (diff < 0) {
+          diffText = `▼ ${diff}`;
+          diffClass = "down";
+        }
+
+        const row = `
+          <tr>
+            <td><strong>${card.name}</strong></td>
+            <td>${card.basePrice} pt</td>
+            <td><strong>${card.currentPrice} pt</strong></td>
+            <td class="${diffClass}">${diffText}</td>
+          </tr>
+        `;
+        tbody.innerHTML += row;
+      });
+
+      document.getElementById("dateDisplay").innerText = `${day}日目 - ${isAM ? "午前" : "午後"}`;
+    }
+
+    function nextTurn() {
+      if (isAM) {
+        isAM = false;
+      } else {
+        isAM = true;
+        day++;
+      }
+      updatePrices();
+    }
+
+    // 初期表示
+    renderTable();
+  </script>
+
+</body>
+</html>
