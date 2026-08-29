@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>カード価格変動ボード</title>
+  <title>リアルタイム カード価格掲示板</title>
   <style>
     body { font-family: sans-serif; background-color: #f0f4f8; padding: 20px; max-width: 800px; margin: 0 auto; }
-    h1 { text-align: center; color: #333; }
-    .controls { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    h1 { text-align: center; color: #333; margin-bottom: 5px; }
+    .subtitle { text-align: center; color: #666; font-size: 0.9rem; margin-bottom: 20px; }
+    .controls { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
     .date-info { font-size: 1.2rem; font-weight: bold; color: #2c3e50; }
-    button { padding: 10px 20px; font-size: 1rem; background-color: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; }
-    button:hover { background-color: #2980b9; }
+    .clock-info { font-size: 1rem; color: #7f8c8d; font-weight: bold; }
     table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
     th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
     th { background-color: #34495e; color: white; }
@@ -21,11 +21,12 @@
 </head>
 <body>
 
-  <h1>📈 カード価格掲示板</h1>
+  <h1>📈 リアルタイム カード価格掲示板</h1>
+  <div class="subtitle">※価格は毎日 00:00（午前）と 12:00（午後）に自動で更新されます</div>
   
   <div class="controls">
-    <div class="date-info" id="dateDisplay">1日目 - 午前</div>
-    <button onclick="nextTurn()">次の時間へを進める</button>
+    <div class="date-info" id="dateDisplay">----/--/-- - --</div>
+    <div class="clock-info" id="clockDisplay">00:00:00</div>
   </div>
 
   <table>
@@ -38,7 +39,8 @@
       </tr>
     </thead>
     <tbody id="cardTable">
-      </tbody>
+      <!-- ここにJSでカードが追加されます -->
+    </tbody>
   </table>
 
   <script>
@@ -48,39 +50,65 @@
       "ムノーンちゃんカード", "ふくちゃんカード"
     ];
 
-    let day = 1;
-    let isAM = true;
-
-    // 各カードの現在価格と前回価格を管理（基準100pt）
-    let cards = cardNames.map(name => ({
-      name: name,
-      basePrice: 100,
-      currentPrice: 100,
-      prevPrice: 100
-    }));
-
-    function updatePrices() {
-      cards.forEach(card => {
-        card.prevPrice = card.currentPrice;
-        // 基準100ptから大幅に離れすぎないよう、50pt〜200ptの間でランダム変動（-20%〜+20%）
-        const changePercent = (Math.random() * 0.4) - 0.2; 
-        let newPrice = Math.round(card.currentPrice * (1 + changePercent));
-        
-        // 価格の上限・下限を設定（最低20pt、最高300pt）
-        if (newPrice < 20) newPrice = 20;
-        if (newPrice > 300) newPrice = 300;
-        
-        card.currentPrice = newPrice;
-      });
-      renderTable();
+    // 擬似乱数生成器（日付と時間から一定のランダム価格を作る仕組み）
+    function seededRandom(seed) {
+      const x = Math.sin(seed++) * 10000;
+      return x - Math.floor(x);
     }
 
-    function renderTable() {
+    // 特定の「年月日・午前午後」に対応する価格を計算
+    function getPriceForTime(cardIndex, year, month, day, isAM) {
+      let price = 100; // 基準価格
+      
+      // 過去5区分（約2.5日前）からの価格変動を累積計算
+      const totalTurns = (year * 366 + month * 31 + day) * 2 + (isAM ? 0 : 1);
+      
+      for (let t = totalTurns - 5; t <= totalTurns; t++) {
+        const seed = t * 100 + cardIndex;
+        const changePercent = (seededRandom(seed) * 0.4) - 0.2; // -20%〜+20%
+        price = Math.round(price * (1 + changePercent));
+        if (price < 20) price = 20;
+        if (price > 300) price = 300;
+      }
+      return price;
+    }
+
+    function updateBoard() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const day = now.getDate();
+      const hours = now.getHours();
+      const isAM = hours < 12;
+
+      // 日時表示
+      const dateStr = `${year}/${month}/${day} ${isAM ? "午前 (00:00〜11:59)" : "午後 (12:00〜23:59)"}`;
+      document.getElementById("dateDisplay").innerText = dateStr;
+
+      // 時計表示
+      const timeStr = now.toTimeString().split(' ')[0];
+      document.getElementById("clockDisplay").innerText = timeStr;
+
+      // 前回の区分（直前の午前または午後）を取得
+      let prevYear = year, prevMonth = month, prevDay = day, prevIsAM = !isAM;
+      if (isAM) {
+        // 今が午前なら、前回は「昨日の午後」
+        const yesterday = new Date(now);
+        yesterday.setDate(now.getDate() - 1);
+        prevYear = yesterday.getFullYear();
+        prevMonth = yesterday.getMonth() + 1;
+        prevDay = yesterday.getDate();
+        prevIsAM = false;
+      }
+
       const tbody = document.getElementById("cardTable");
       tbody.innerHTML = "";
 
-      cards.forEach(card => {
-        const diff = card.currentPrice - card.prevPrice;
+      cardNames.forEach((name, index) => {
+        const currentPrice = getPriceForTime(index, year, month, day, isAM);
+        const prevPrice = getPriceForTime(index, prevYear, prevMonth, prevDay, prevIsAM);
+
+        const diff = currentPrice - prevPrice;
         let diffText = "±0";
         let diffClass = "same";
 
@@ -94,30 +122,19 @@
 
         const row = `
           <tr>
-            <td><strong>${card.name}</strong></td>
-            <td>${card.basePrice} pt</td>
-            <td><strong>${card.currentPrice} pt</strong></td>
+            <td><strong>${name}</strong></td>
+            <td>100 pt</td>
+            <td><strong>${currentPrice} pt</strong></td>
             <td class="${diffClass}">${diffText}</td>
           </tr>
         `;
         tbody.innerHTML += row;
       });
-
-      document.getElementById("dateDisplay").innerText = `${day}日目 - ${isAM ? "午前" : "午後"}`;
     }
 
-    function nextTurn() {
-      if (isAM) {
-        isAM = false;
-      } else {
-        isAM = true;
-        day++;
-      }
-      updatePrices();
-    }
-
-    // 初期表示
-    renderTable();
+    // 初回実行と1秒ごとの時計更新
+    updateBoard();
+    setInterval(updateBoard, 1000);
   </script>
 
 </body>
